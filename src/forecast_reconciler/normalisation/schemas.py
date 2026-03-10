@@ -24,11 +24,12 @@ def validate_macro_schema(
     df: pl.DataFrame,
     config: ReconciliationConfig,
 ) -> SchemaValidationReport:
+
     return _validate_dataset_schema(
         df=df,
         dataset_name="macro",
         required_columns=config.macro_required_columns,
-        non_nullable_columns=config.macro_required_columns,
+        non_nullable_columns=config.group_keys,
     )
 
 
@@ -36,11 +37,18 @@ def validate_granular_schema(
     df: pl.DataFrame,
     config: ReconciliationConfig,
 ) -> SchemaValidationReport:
+
+    granular_non_nullable_columns = tuple(
+        list(config.group_keys) + [config.columns.sku_col]
+        if config.columns.sku_col not in config.group_keys
+        else list(config.group_keys)
+    )
+
     return _validate_dataset_schema(
         df=df,
         dataset_name="granular",
         required_columns=config.granular_required_columns,
-        non_nullable_columns=config.granular_required_columns,
+        non_nullable_columns=granular_non_nullable_columns,
     )
 
 
@@ -50,7 +58,6 @@ def _validate_dataset_schema(
     required_columns: Iterable[ColumnName],
     non_nullable_columns: Iterable[ColumnName],
 ) -> SchemaValidationReport:
-    
     actual_columns = tuple(df.columns)
     required_columns_tuple = tuple(required_columns)
     non_nullable_columns_tuple = tuple(non_nullable_columns)

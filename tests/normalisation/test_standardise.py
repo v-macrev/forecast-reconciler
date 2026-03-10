@@ -18,7 +18,8 @@ def test_standardise_macro_input_returns_canonical_dataset():
             "market": ["SP", "RJ"],
             "channel": ["Retail", "Wholesale"],
             "macro_target_qty": ["100", 250],
-        }
+        },
+        strict=False,
     )
 
     result = standardise_macro_input(df=df, config=config)
@@ -42,7 +43,8 @@ def test_standardise_granular_input_returns_canonical_dataset():
             "channel": ["Retail", "Retail"],
             "sku": ["SKU-001", "SKU-002"],
             "baseline_qty": ["60", 40],
-        }
+        },
+        strict=False,
     )
 
     result = standardise_granular_input(df=df, config=config)
