@@ -167,7 +167,7 @@ def test_apply_deterministic_rounding_rejects_empty_input():
         raise AssertionError("Expected ReconciliationError for empty allocation dataset.")
 
 
-def test_apply_deterministic_rounding_raises_when_exact_totals_fail():
+def test_apply_deterministic_rounding_aligns_macro_target_to_configured_precision():
     config = ReconciliationConfig(quantity_mode="decimal", quantity_decimals=2)
 
     allocation_df = pl.DataFrame(
@@ -184,11 +184,14 @@ def test_apply_deterministic_rounding_raises_when_exact_totals_fail():
         }
     )
 
-    try:
-        apply_deterministic_rounding(allocation_df=allocation_df, config=config)
-    except IntegrityCheckError as exc:
-        assert str(exc) == (
-            "Final rounded allocations do not match macro targets for one or more groups."
-        )
-    else:
-        raise AssertionError("Expected IntegrityCheckError when exact totals cannot be enforced.")
+    result = apply_deterministic_rounding(allocation_df=allocation_df, config=config)
+
+    allocations = result.allocations
+    assert allocations.get_column("rounded_allocated_qty").to_list() == [0.0]
+    assert allocations.get_column("final_allocated_qty").to_list() == [0.0]
+
+    summary = result.group_summary
+    assert summary.get_column("macro_target_qty").to_list() == [0.004]
+    assert summary.get_column("rounded_group_total").to_list() == [0.0]
+    assert summary.get_column("final_group_total").to_list() == [0.0]
+    assert summary.get_column("final_gap").to_list() == [0.004]
