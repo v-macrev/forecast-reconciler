@@ -1,0 +1,89 @@
+[build-system]
+requires = ["setuptools>=69.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "forecast-reconciler"
+version = "0.1.0"
+description = "Algorithmic forecast reconciler for aligning macro targets to granular SKU-level plans while preserving proportional demand mix."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "GNU Affero General Public License v3.0" }
+authors = [
+  { name = "Victor Rodrigues" }
+]
+keywords = [
+  "forecasting",
+  "reconciliation",
+  "supply-chain",
+  "demand-planning",
+  "polars",
+  "analytics-engineering"
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Financial and Insurance Industry",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: GNU Affero General Public License v3",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering",
+  "Topic :: Office/Business :: Financial",
+  "Topic :: Software Development :: Libraries :: Python Modules"
+]
+dependencies = [
+  "polars>=1.8.0",
+  "numpy>=1.26.0",
+  "openpyxl>=3.1.0"
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0.0",
+  "pytest-cov>=5.0.0",
+  "ruff>=0.6.0",
+  "mypy>=1.10.0"
+]
+app = [
+  "streamlit>=1.38.0"
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = [
+  "-ra",
+  "--strict-markers",
+  "--strict-config"
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = [
+  "E",
+  "F",
+  "I",
+  "B",
+  "UP"
+]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+no_implicit_optional = true
+strict_equality = true
+mypy_path = "src"
