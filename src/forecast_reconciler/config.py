@@ -6,6 +6,7 @@ from typing import Literal
 from forecast_reconciler.types import (
     DEFAULT_BASELINE_QTY_COL,
     DEFAULT_CHANNEL_COL,
+    DEFAULT_CLIENT_COL,
     DEFAULT_MACRO_TARGET_QTY_COL,
     DEFAULT_MARKET_COL,
     DEFAULT_PERIOD_COL,
@@ -23,6 +24,7 @@ class InputColumnConfig:
     period_col: ColumnName = DEFAULT_PERIOD_COL
     market_col: ColumnName = DEFAULT_MARKET_COL
     channel_col: ColumnName = DEFAULT_CHANNEL_COL
+    client_col: ColumnName = DEFAULT_CLIENT_COL
     sku_col: ColumnName = DEFAULT_SKU_COL
     macro_target_qty_col: ColumnName = DEFAULT_MACRO_TARGET_QTY_COL
     baseline_qty_col: ColumnName = DEFAULT_BASELINE_QTY_COL
@@ -73,12 +75,9 @@ class ReconciliationConfig:
 
     @property
     def granular_required_columns(self) -> tuple[ColumnName, ...]:
-        granular_group_keys = tuple(
-            key for key in self.group_keys if key != self.columns.sku_col
-        )
-
         return (
-            *granular_group_keys,
+            *self.group_keys,
+            self.columns.client_col,
             self.columns.sku_col,
             self.columns.baseline_qty_col,
         )

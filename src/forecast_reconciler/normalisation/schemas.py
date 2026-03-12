@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
 from dataclasses import dataclass
+from typing import Iterable
 
 import polars as pl
 
@@ -24,7 +24,6 @@ def validate_macro_schema(
     df: pl.DataFrame,
     config: ReconciliationConfig,
 ) -> SchemaValidationReport:
-
     return _validate_dataset_schema(
         df=df,
         dataset_name="macro",
@@ -37,11 +36,10 @@ def validate_granular_schema(
     df: pl.DataFrame,
     config: ReconciliationConfig,
 ) -> SchemaValidationReport:
-
-    granular_non_nullable_columns = tuple(
-        list(config.group_keys) + [config.columns.sku_col]
-        if config.columns.sku_col not in config.group_keys
-        else list(config.group_keys)
+    granular_non_nullable_columns = (
+        *config.group_keys,
+        config.columns.client_col,
+        config.columns.sku_col,
     )
 
     return _validate_dataset_schema(

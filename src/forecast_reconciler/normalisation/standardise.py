@@ -19,7 +19,6 @@ def standardise_macro_input(
     df: pl.DataFrame,
     config: ReconciliationConfig,
 ) -> pl.DataFrame:
-
     validate_macro_schema(df=df, config=config)
 
     result = normalise_period_column(df=df, period_col=config.columns.period_col)
@@ -45,7 +44,6 @@ def standardise_granular_input(
     df: pl.DataFrame,
     config: ReconciliationConfig,
 ) -> pl.DataFrame:
-
     validate_granular_schema(df=df, config=config)
 
     result = normalise_period_column(df=df, period_col=config.columns.period_col)
@@ -55,10 +53,10 @@ def standardise_granular_input(
         dataset_name="granular",
     )
 
-    granular_key_columns = tuple(
-        list(config.group_keys) + [config.columns.sku_col]
-        if config.columns.sku_col not in config.group_keys
-        else list(config.group_keys)
+    granular_key_columns = (
+        *config.group_keys,
+        config.columns.client_col,
+        config.columns.sku_col,
     )
 
     ordered_columns = list(granular_key_columns) + [config.columns.baseline_qty_col]
@@ -80,7 +78,11 @@ def _coerce_numeric_column(
 ) -> pl.DataFrame:
     values = df.get_column(column).to_list()
     coerced_values = [
-        _coerce_single_numeric_value(value=value, column=column, dataset_name=dataset_name)
+        _coerce_single_numeric_value(
+            value=value,
+            column=column,
+            dataset_name=dataset_name,
+        )
         for value in values
     ]
 

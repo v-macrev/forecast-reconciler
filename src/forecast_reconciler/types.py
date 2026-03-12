@@ -12,6 +12,7 @@ Quantity: TypeAlias = float
 DEFAULT_PERIOD_COL: ColumnName = "period"
 DEFAULT_MARKET_COL: ColumnName = "market"
 DEFAULT_CHANNEL_COL: ColumnName = "channel"
+DEFAULT_CLIENT_COL: ColumnName = "client"
 DEFAULT_SKU_COL: ColumnName = "sku"
 DEFAULT_MACRO_TARGET_QTY_COL: ColumnName = "macro_target_qty"
 DEFAULT_BASELINE_QTY_COL: ColumnName = "baseline_qty"
