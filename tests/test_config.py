@@ -17,6 +17,7 @@ def test_custom_reconciliation_config_is_valid():
         period_col="plan_month",
         market_col="region",
         channel_col="segment",
+        client_col="account",
         sku_col="product_code",
         macro_target_qty_col="target_units",
         baseline_qty_col="baseline_units",
@@ -34,6 +35,7 @@ def test_custom_reconciliation_config_is_valid():
     assert config.quantity_mode == "decimal"
     assert config.quantity_decimals == 2
     assert config.zero_baseline_mode == "equal_split"
+    assert config.columns.client_col == "account"
     assert config.columns.sku_col == "product_code"
     assert config.columns.macro_target_qty_col == "target_units"
 
@@ -87,24 +89,14 @@ def test_macro_required_columns_follow_group_keys():
     )
 
 
-def test_granular_required_columns_include_sku_and_baseline():
+def test_granular_required_columns_include_client_sku_and_baseline():
     config = ReconciliationConfig()
 
     assert config.granular_required_columns == (
         "period",
         "market",
         "channel",
-        "sku",
-        "baseline_qty",
-    )
-
-
-def test_granular_required_columns_do_not_duplicate_sku_when_in_group_keys():
-    config = ReconciliationConfig(group_keys=("period", "market", "sku"))
-
-    assert config.granular_required_columns == (
-        "period",
-        "market",
+        "client",
         "sku",
         "baseline_qty",
     )

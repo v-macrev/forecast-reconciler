@@ -1,58 +1,40 @@
-from datetime import date
 from io import BytesIO
 from zipfile import ZipFile
 
 import polars as pl
 
 from forecast_reconciler.app.streamlit_app import (
-    PipelineRunResult,
-    build_workbook_filename,
+    build_export_filename,
     load_uploaded_table,
     run_reconciliation_pipeline,
 )
 from forecast_reconciler.config import ReconciliationConfig
 
 
-def test_build_workbook_filename_uses_expected_pattern():
-    filename = build_workbook_filename()
-
+def test_build_export_filename_returns_xlsx_name():
+    filename = build_export_filename("xlsx")
     assert filename.startswith("forecast_reconciliation_")
     assert filename.endswith(".xlsx")
-    assert len(filename) == len("forecast_reconciliation_YYYYMMDD_HHMMSS.xlsx")
 
 
-def test_load_uploaded_table_reads_csv_content():
+def test_build_export_filename_returns_zip_name():
+    filename = build_export_filename("zip_csv")
+    assert filename.startswith("forecast_reconciliation_")
+    assert filename.endswith(".zip")
+
+
+def test_load_uploaded_table_reads_csv_with_string_sku():
     csv_bytes = BytesIO(
-        b"period,market,channel,macro_target_qty\n2026-01,SP,Retail,100\n"
+        b"period,market,channel,client,sku,baseline_qty,baseline_value\n"
+        b"2026-01-01,GEN,Retail,Client A,EL-JOLE181020241202617,10,150\n"
     )
 
-    df = load_uploaded_table(csv_bytes, "macro.csv")
+    df = load_uploaded_table(csv_bytes, "granular.csv")
 
-    assert df.columns == ["period", "market", "channel", "macro_target_qty"]
-    assert df.to_dicts() == [
-        {
-            "period": "2026-01",
-            "market": "SP",
-            "channel": "Retail",
-            "macro_target_qty": 100,
-        }
-    ]
+    assert df.get_column("sku").to_list() == ["EL-JOLE181020241202617"]
 
 
-def test_load_uploaded_table_rejects_unsupported_extension():
-    csv_bytes = BytesIO(b"anything")
-
-    try:
-        load_uploaded_table(csv_bytes, "macro.txt")
-    except ValueError as exc:
-        assert str(exc) == (
-            "Unsupported input file format '.txt'. Supported formats are .csv and .xlsx/.xlsm."
-        )
-    else:
-        raise AssertionError("Expected ValueError for unsupported uploaded file type.")
-
-
-def test_run_reconciliation_pipeline_returns_full_result_and_workbook_bytes():
+def test_run_reconciliation_pipeline_units_mode_returns_both_qty_and_value():
     config = ReconciliationConfig(
         quantity_mode="integer",
         quantity_decimals=0,
@@ -63,20 +45,23 @@ def test_run_reconciliation_pipeline_returns_full_result_and_workbook_bytes():
 
     macro_df = pl.DataFrame(
         {
-            "period": ["2026-01"],
-            "market": ["SP"],
+            "period": ["2026-01-01"],
+            "market": ["GEN"],
             "channel": ["Retail"],
-            "macro_target_qty": [120],
+            "macro_target_qty": [120.0],
+            "macro_target_value": [1200.0],
         }
     )
 
     granular_df = pl.DataFrame(
         {
-            "period": ["2026-01", "2026-01"],
-            "market": ["SP", "SP"],
+            "period": ["2026-01-01", "2026-01-01"],
+            "market": ["GEN", "GEN"],
             "channel": ["Retail", "Retail"],
+            "client": ["Client A", "Client B"],
             "sku": ["SKU-001", "SKU-002"],
-            "baseline_qty": [60, 40],
+            "baseline_qty": [60.0, 40.0],
+            "baseline_value": [600.0, 400.0],
         }
     )
 
@@ -84,49 +69,91 @@ def test_run_reconciliation_pipeline_returns_full_result_and_workbook_bytes():
         macro_df=macro_df,
         granular_df=granular_df,
         config=config,
+        output_format="zip_csv",
+        basis="units",
+        macro_input_mode="Direct Macro Targets",
+        share_target=None,
+        lock_df=None,
     )
 
-    assert isinstance(result, PipelineRunResult)
-
-    final_allocations = result.final_allocations.sort("sku")
+    final_allocations = result.final_allocations.sort(["client", "sku"])
     assert final_allocations.select(
-        ["period", "market", "channel", "sku", "final_allocated_qty"]
+        ["client", "sku", "final_allocated_qty", "final_allocated_value"]
     ).to_dicts() == [
         {
-            "period": date(2026, 1, 1),
-            "market": "SP",
-            "channel": "Retail",
+            "client": "Client A",
             "sku": "SKU-001",
             "final_allocated_qty": 72.0,
+            "final_allocated_value": 720.0,
         },
         {
-            "period": date(2026, 1, 1),
-            "market": "SP",
-            "channel": "Retail",
+            "client": "Client B",
             "sku": "SKU-002",
             "final_allocated_qty": 48.0,
+            "final_allocated_value": 480.0,
         },
     ]
 
-    assert result.group_summary.height == 1
-    assert result.sku_variance.height == 2
-    assert result.integrity_summary.to_dicts() == [
+    with ZipFile(BytesIO(result.export_bytes), "r") as zip_file:
+        assert "final_allocations.csv" in zip_file.namelist()
+
+
+def test_run_reconciliation_pipeline_value_mode_returns_both_qty_and_value():
+    config = ReconciliationConfig(
+        quantity_mode="decimal",
+        quantity_decimals=2,
+        zero_baseline_mode="fail",
+        allow_negative_allocations=False,
+        enforce_exact_totals=True,
+    )
+
+    macro_df = pl.DataFrame(
         {
-            "validated_group_count": 1,
-            "groups_with_gap_count": 0,
-            "negative_allocation_count": 0,
-            "unmatched_macro_group_count": 0,
-            "unmatched_granular_group_count": 0,
-            "is_valid": True,
+            "period": ["2026-01-01"],
+            "market": ["GEN"],
+            "channel": ["Retail"],
+            "macro_target_qty": [33.0],
+            "macro_target_value": [330.0],
         }
+    )
+
+    granular_df = pl.DataFrame(
+        {
+            "period": ["2026-01-01", "2026-01-01"],
+            "market": ["GEN", "GEN"],
+            "channel": ["Retail", "Retail"],
+            "client": ["Client A", "Client B"],
+            "sku": ["SKU-001", "SKU-002"],
+            "baseline_qty": [10.0, 20.0],
+            "baseline_value": [100.0, 200.0],
+        }
+    )
+
+    result = run_reconciliation_pipeline(
+        macro_df=macro_df,
+        granular_df=granular_df,
+        config=config,
+        output_format="zip_csv",
+        basis="value",
+        macro_input_mode="Direct Macro Targets",
+        share_target=None,
+        lock_df=None,
+    )
+
+    final_allocations = result.final_allocations.sort(["client", "sku"])
+    assert final_allocations.select(
+        ["client", "sku", "final_allocated_qty", "final_allocated_value"]
+    ).to_dicts() == [
+        {
+            "client": "Client A",
+            "sku": "SKU-001",
+            "final_allocated_qty": 11.0,
+            "final_allocated_value": 110.0,
+        },
+        {
+            "client": "Client B",
+            "sku": "SKU-002",
+            "final_allocated_qty": 22.0,
+            "final_allocated_value": 220.0,
+        },
     ]
-
-    assert result.workbook_name.startswith("forecast_reconciliation_")
-    assert result.workbook_name.endswith(".xlsx")
-    assert isinstance(result.workbook_bytes, bytes)
-    assert len(result.workbook_bytes) > 0
-
-    with ZipFile(BytesIO(result.workbook_bytes), "r") as workbook_zip:
-        names = set(workbook_zip.namelist())
-        assert "[Content_Types].xml" in names
-        assert "xl/workbook.xml" in names

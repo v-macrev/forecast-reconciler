@@ -14,7 +14,7 @@ def test_validate_macro_schema_accepts_valid_dataset():
     df = pl.DataFrame(
         {
             "period": ["2026-01", "2026-01"],
-            "market": ["GEN", "SIM"],
+            "market": ["SP", "RJ"],
             "channel": ["Retail", "Retail"],
             "macro_target_qty": [100, 200],
         }
@@ -41,6 +41,7 @@ def test_validate_granular_schema_accepts_valid_dataset():
             "period": ["2026-01", "2026-01"],
             "market": ["SP", "SP"],
             "channel": ["Retail", "Retail"],
+            "client": ["Client A", "Client B"],
             "sku": ["SKU-001", "SKU-002"],
             "baseline_qty": [60, 40],
         }
@@ -51,11 +52,12 @@ def test_validate_granular_schema_accepts_valid_dataset():
     assert isinstance(result, SchemaValidationReport)
     assert result.dataset_name == "granular"
     assert result.row_count == 2
-    assert result.column_count == 5
+    assert result.column_count == 6
     assert result.required_columns == (
         "period",
         "market",
         "channel",
+        "client",
         "sku",
         "baseline_qty",
     )
@@ -74,10 +76,7 @@ def test_validate_macro_schema_rejects_missing_required_column():
     try:
         validate_macro_schema(df=df, config=config)
     except SchemaValidationError as exc:
-        assert (
-            str(exc)
-            == "macro dataset is missing required columns: channel."
-        )
+        assert str(exc) == "macro dataset is missing required columns: channel."
     else:
         raise AssertionError("Expected SchemaValidationError for missing macro column.")
 
@@ -89,6 +88,7 @@ def test_validate_granular_schema_rejects_missing_required_column():
             "period": ["2026-01"],
             "market": ["SP"],
             "channel": ["Retail"],
+            "sku": ["SKU-001"],
             "baseline_qty": [100],
         }
     )
@@ -96,7 +96,7 @@ def test_validate_granular_schema_rejects_missing_required_column():
     try:
         validate_granular_schema(df=df, config=config)
     except SchemaValidationError as exc:
-        assert str(exc) == "granular dataset is missing required columns: sku."
+        assert str(exc) == "granular dataset is missing required columns: client."
     else:
         raise AssertionError(
             "Expected SchemaValidationError for missing granular column."
@@ -133,7 +133,8 @@ def test_validate_granular_schema_rejects_null_values_in_required_columns():
             "period": ["2026-01", "2026-01"],
             "market": ["SP", "SP"],
             "channel": ["Retail", "Retail"],
-            "sku": ["SKU-001", None],
+            "client": ["Client A", None],
+            "sku": ["SKU-001", "SKU-002"],
             "baseline_qty": [60, 40],
         },
         strict=False,
@@ -144,7 +145,7 @@ def test_validate_granular_schema_rejects_null_values_in_required_columns():
     except SchemaValidationError as exc:
         assert (
             str(exc)
-            == "granular dataset contains null values in required columns: sku."
+            == "granular dataset contains null values in required columns: client."
         )
     else:
         raise AssertionError(
@@ -165,6 +166,7 @@ def test_validate_schema_respects_custom_group_keys():
         {
             "period": ["2026-01"],
             "market": ["SP"],
+            "client": ["Client A"],
             "sku": ["SKU-001"],
             "baseline_qty": [100],
         }
@@ -174,4 +176,10 @@ def test_validate_schema_respects_custom_group_keys():
     granular_result = validate_granular_schema(df=granular_df, config=config)
 
     assert macro_result.required_columns == ("period", "market", "macro_target_qty")
-    assert granular_result.required_columns == ("period", "market", "sku", "baseline_qty")
+    assert granular_result.required_columns == (
+        "period",
+        "market",
+        "client",
+        "sku",
+        "baseline_qty",
+    )

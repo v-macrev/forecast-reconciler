@@ -50,6 +50,16 @@ def test_end_to_end_reconciliation_pipeline(tmp_path: Path):
             ],
             "market": ["SP", "SP", "RJ", "RJ", "SP", "SP", "RJ", "RJ"],
             "channel": ["Retail"] * 8,
+            "client": [
+                "Client A",
+                "Client B",
+                "Client A",
+                "Client B",
+                "Client A",
+                "Client B",
+                "Client A",
+                "Client B",
+            ],
             "sku": [
                 "SKU-001",
                 "SKU-002",
@@ -68,7 +78,14 @@ def test_end_to_end_reconciliation_pipeline(tmp_path: Path):
     granular_std = standardise_granular_input(df=granular_raw, config=config)
 
     assert macro_std.columns == ["period", "market", "channel", "macro_target_qty"]
-    assert granular_std.columns == ["period", "market", "channel", "sku", "baseline_qty"]
+    assert granular_std.columns == [
+        "period",
+        "market",
+        "channel",
+        "client",
+        "sku",
+        "baseline_qty",
+    ]
 
     weight_result = calculate_weights(granular_df=granular_std, config=config)
     assert weight_result.zero_baseline_groups.height == 0
@@ -87,13 +104,16 @@ def test_end_to_end_reconciliation_pipeline(tmp_path: Path):
         config=config,
     )
 
-    rounded_allocations = rounding_result.allocations.sort(["period", "market", "sku"])
+    rounded_allocations = rounding_result.allocations.sort(
+        ["period", "market", "client", "sku"]
+    )
 
     expected_final_allocations = [
         {
             "period": date(2026, 1, 1),
             "market": "RJ",
             "channel": "Retail",
+            "client": "Client A",
             "sku": "SKU-010",
             "final_allocated_qty": 20.0,
         },
@@ -101,6 +121,7 @@ def test_end_to_end_reconciliation_pipeline(tmp_path: Path):
             "period": date(2026, 1, 1),
             "market": "RJ",
             "channel": "Retail",
+            "client": "Client B",
             "sku": "SKU-011",
             "final_allocated_qty": 30.0,
         },
@@ -108,6 +129,7 @@ def test_end_to_end_reconciliation_pipeline(tmp_path: Path):
             "period": date(2026, 1, 1),
             "market": "SP",
             "channel": "Retail",
+            "client": "Client A",
             "sku": "SKU-001",
             "final_allocated_qty": 72.0,
         },
@@ -115,6 +137,7 @@ def test_end_to_end_reconciliation_pipeline(tmp_path: Path):
             "period": date(2026, 1, 1),
             "market": "SP",
             "channel": "Retail",
+            "client": "Client B",
             "sku": "SKU-002",
             "final_allocated_qty": 48.0,
         },
@@ -122,6 +145,7 @@ def test_end_to_end_reconciliation_pipeline(tmp_path: Path):
             "period": date(2026, 2, 1),
             "market": "RJ",
             "channel": "Retail",
+            "client": "Client A",
             "sku": "SKU-010",
             "final_allocated_qty": 50.0,
         },
@@ -129,6 +153,7 @@ def test_end_to_end_reconciliation_pipeline(tmp_path: Path):
             "period": date(2026, 2, 1),
             "market": "RJ",
             "channel": "Retail",
+            "client": "Client B",
             "sku": "SKU-011",
             "final_allocated_qty": 30.0,
         },
@@ -136,6 +161,7 @@ def test_end_to_end_reconciliation_pipeline(tmp_path: Path):
             "period": date(2026, 2, 1),
             "market": "SP",
             "channel": "Retail",
+            "client": "Client A",
             "sku": "SKU-001",
             "final_allocated_qty": 27.0,
         },
@@ -143,13 +169,14 @@ def test_end_to_end_reconciliation_pipeline(tmp_path: Path):
             "period": date(2026, 2, 1),
             "market": "SP",
             "channel": "Retail",
+            "client": "Client B",
             "sku": "SKU-002",
             "final_allocated_qty": 63.0,
         },
     ]
 
     assert rounded_allocations.select(
-        ["period", "market", "channel", "sku", "final_allocated_qty"]
+        ["period", "market", "channel", "client", "sku", "final_allocated_qty"]
     ).to_dicts() == expected_final_allocations
 
     integrity_result = validate_reconciliation_integrity(

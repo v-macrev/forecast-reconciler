@@ -41,6 +41,7 @@ def test_standardise_granular_input_returns_canonical_dataset():
             "period": ["2026/01/31", "15/02/2026"],
             "market": ["SP", "SP"],
             "channel": ["Retail", "Retail"],
+            "client": ["Client A", "Client B"],
             "sku": ["SKU-001", "SKU-002"],
             "baseline_qty": ["60", 40],
         },
@@ -49,7 +50,14 @@ def test_standardise_granular_input_returns_canonical_dataset():
 
     result = standardise_granular_input(df=df, config=config)
 
-    assert result.columns == ["period", "market", "channel", "sku", "baseline_qty"]
+    assert result.columns == [
+        "period",
+        "market",
+        "channel",
+        "client",
+        "sku",
+        "baseline_qty",
+    ]
     assert result.schema["period"] == pl.Date
     assert result.schema["baseline_qty"] == pl.Float64
     assert result.get_column("period").to_list() == [
@@ -88,6 +96,7 @@ def test_standardise_granular_input_rejects_duplicate_business_keys():
             "period": ["2026-01", "2026-01"],
             "market": ["SP", "SP"],
             "channel": ["Retail", "Retail"],
+            "client": ["Client A", "Client A"],
             "sku": ["SKU-001", "SKU-001"],
             "baseline_qty": [60, 40],
         }
@@ -98,7 +107,7 @@ def test_standardise_granular_input_rejects_duplicate_business_keys():
     except DataValidationError as exc:
         assert str(exc) == (
             "granular dataset contains duplicate business keys for columns: "
-            "period, market, channel, sku."
+            "period, market, channel, client, sku."
         )
     else:
         raise AssertionError("Expected DataValidationError for duplicate granular keys.")
@@ -133,6 +142,7 @@ def test_standardise_granular_input_rejects_empty_string_quantity_values():
             "period": ["2026-01"],
             "market": ["SP"],
             "channel": ["Retail"],
+            "client": ["Client A"],
             "sku": ["SKU-001"],
             "baseline_qty": ["   "],
         }
@@ -176,6 +186,7 @@ def test_standardise_granular_input_accepts_thousands_separator_strings():
             "period": ["2026-01"],
             "market": ["SP"],
             "channel": ["Retail"],
+            "client": ["Client A"],
             "sku": ["SKU-001"],
             "baseline_qty": ["1,250.5"],
         }
@@ -200,6 +211,7 @@ def test_standardise_respects_custom_group_keys_for_macro_and_granular():
         {
             "period": ["2026-01"],
             "market": ["SP"],
+            "client": ["Client A"],
             "sku": ["SKU-001"],
             "baseline_qty": [100],
         }
@@ -209,7 +221,13 @@ def test_standardise_respects_custom_group_keys_for_macro_and_granular():
     granular_result = standardise_granular_input(df=granular_df, config=config)
 
     assert macro_result.columns == ["period", "market", "macro_target_qty"]
-    assert granular_result.columns == ["period", "market", "sku", "baseline_qty"]
+    assert granular_result.columns == [
+        "period",
+        "market",
+        "client",
+        "sku",
+        "baseline_qty",
+    ]
 
 
 def test_standardise_rejects_boolean_quantity_values():
